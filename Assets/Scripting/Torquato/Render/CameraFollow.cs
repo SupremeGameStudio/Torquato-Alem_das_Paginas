@@ -17,6 +17,8 @@ namespace Scripting.Torquato.Render {
         }
     
         void Update() {
+            if (target == null) return;
+            
             var targetPos = target.position + (angle * distance);
             if (targetPos.z < lastTargetPos.z) {
                 targetPos.z = lastTargetPos.z;
