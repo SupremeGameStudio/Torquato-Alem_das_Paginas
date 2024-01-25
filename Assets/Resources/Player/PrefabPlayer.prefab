@@ -52,7 +52,7 @@ MonoBehaviour:
   charController: {fileID: 5687592843524478891}
   anim: {fileID: 7315765464256852600}
   model: {fileID: 3703926166296750082}
-  speed: 4
+  speed: 5
   jumpSpeed: 12
   gravity: 30
 --- !u!143 &5687592843524478891

@@ -1,3 +1,4 @@
+using Scripting.Torquato.Items;
 using UnityEngine;
 
 namespace Scripting.Torquato.Control {
@@ -19,6 +20,7 @@ namespace Scripting.Torquato.Control {
         public float jumpSpeed;
         public float gravity;
 
+        private GameController gameController;
         // States
         private bool moving;
         private bool grounded;
@@ -28,6 +30,10 @@ namespace Scripting.Torquato.Control {
         private Vector3 moveDir = Vector3.zero;
         private Vector3 prevMoveDir = Vector3.forward;
         private float verticalSpeed;
+
+        public void Setup(GameController gameController) {
+            this.gameController = gameController;
+        }
         
         void Start() {
             zBarrier = Instantiate(prefabZBarrier, transform.position - new Vector3(0, 0, zBarrierDistance),
@@ -37,8 +43,8 @@ namespace Scripting.Torquato.Control {
         void Update() {
             Gravity();
             
-            float horizontalInput = Input.GetAxis("Horizontal");
-            float verticalInput = Input.GetAxis("Vertical");
+            float horizontalInput = (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0);
+            float verticalInput = (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0);
             moveDir = new Vector3(horizontalInput, 0f, verticalInput);
             moveDir.Normalize();
             
@@ -71,7 +77,7 @@ namespace Scripting.Torquato.Control {
         }
 
         private void Gravity() {
-            if (charController.isGrounded) {
+            if (charController.isGrounded && verticalSpeed <= -1) {
                 verticalSpeed = -1f;
             } else {
                 verticalSpeed -= gravity * Time.deltaTime;
@@ -85,7 +91,7 @@ namespace Scripting.Torquato.Control {
         }
 
         private void Animation() {
-            model.transform.rotation = Quaternion.Lerp(model.transform.rotation, Quaternion.LookRotation(prevMoveDir), 10 * Time.deltaTime);
+            model.transform.rotation = Quaternion.Lerp(model.transform.rotation, Quaternion.LookRotation(prevMoveDir), 35 * Time.deltaTime);
             if (attackTimer > 0) {
                 PlayAnim("Attack");
             } else if (!grounded) {
@@ -106,6 +112,28 @@ namespace Scripting.Torquato.Control {
                     anim.CrossFade(animName, cross);
                 }
             }
+        }
+        
+        private void OnTriggerEnter(Collider other) {
+            if (other.gameObject.tag == "Hole") {
+                gameController.OnPlayerFallOnHole();
+            } else {
+                Item item = other.gameObject.GetComponent<Item>();
+                if (item != null) {
+                    item.OnPlayerCollision(this, null);
+                }
+            }
+        }
+        
+        private void OnControllerColliderHit(ControllerColliderHit hit) {
+            Item item = hit.gameObject.GetComponent<Item>();
+            if (item != null) {
+                item.OnPlayerCollision(this, hit);
+            }
+        }
+
+        public void Spring(float springForce) {
+            verticalSpeed = jumpSpeed * springForce;
         }
     }
 }
