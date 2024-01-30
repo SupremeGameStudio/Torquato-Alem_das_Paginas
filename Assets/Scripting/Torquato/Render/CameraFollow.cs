@@ -19,10 +19,10 @@ namespace Scripting.Torquato.Render {
         void Update() {
             if (target == null) return;
             
-            var targetPos = target.position + (angle * distance);
-            if (targetPos.z < lastTargetPos.z) {
+            var targetPos = target.position + (target.TransformVector(angle) * distance);
+            /*if (targetPos.z < lastTargetPos.z) {
                 targetPos.z = lastTargetPos.z;
-            }
+            }*/
             lastTargetPos = targetPos;
             
             if (Vector3.Distance(transform.position, targetPos) > distance * 5) {
@@ -32,9 +32,9 @@ namespace Scripting.Torquato.Render {
             }
 
             var lookpos = target.position;
-            if (lookpos.z < lastLookPos.z) {
+            /*if (lookpos.z < lastLookPos.z) {
                 lookpos.z = lastLookPos.z;
-            }
+            }*/
             lastLookPos = lookpos;
             lookpos = Vector3.Lerp(lookpos, target.position, 0.5f);
             transform.LookAt(lookpos + new Vector3(0, height, 0));
