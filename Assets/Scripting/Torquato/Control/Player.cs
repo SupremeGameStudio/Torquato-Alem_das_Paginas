@@ -12,12 +12,6 @@ namespace Scripting.Torquato.Control {
         public enum State {
             IDLE, MOVE, DASH, DAMAGE, ATTACK
         }
-
-        [Header("ZBarrier")]
-        public float zBarrierDistance = 3;
-        public GameObject prefabZBarrier;
-        private Transform zBarrier;
-        private float zFoward;
         
         [Header("Components")]
         public CharacterController charController;
@@ -70,8 +64,7 @@ namespace Scripting.Torquato.Control {
         }
         
         void Start() {
-            zBarrier = Instantiate(prefabZBarrier, transform.position - new Vector3(0, 0, zBarrierDistance),
-                Quaternion.identity).transform;
+            
         }
         
         void Update() {
@@ -86,7 +79,6 @@ namespace Scripting.Torquato.Control {
             
             // Rendering
             Animation();
-            ZBarrierFollow();
         }
 
         private void StateControl() {
@@ -276,28 +268,6 @@ namespace Scripting.Torquato.Control {
             return false; // No wall detected
         }
         
-        private void ZBarrierFollow() {
-            float backDistance = zBarrierDistance;
-            var path = currentPath.line;
-            float realT = currentPath.time * currentPath.line.length;
-            while (backDistance > realT && path.PrevLines.Count > 0) {
-                backDistance -= realT;
-                path = path.PrevLines[0];
-                GameController.CalculateLineDistance(transform.position, path.pointA, path.pointB, out _, out var time);
-                if (time > 0 && time < 1) {
-                    realT = path.length * time;
-                } else {
-                    realT = path.length;
-                }
-            }
-
-            realT -= backDistance;
-            realT /= path.length;
-            Vector3 pos = Vector3.LerpUnclamped(path.pointA, path.pointB, realT);
-            zBarrier.transform.position = new Vector3(pos.x, 0, pos.z);
-            zBarrier.transform.rotation = path.cleanRotation;
-        }
-
         private void Animation() {
             var dir = transform.TransformDirection(faceMoveDir);
             model.transform.rotation = 
@@ -314,7 +284,7 @@ namespace Scripting.Torquato.Control {
             } else if (state == State.MOVE) {
                 if (grounded) {
                     if (IsSwim) PlayAnim("Swim");
-                    if (IsWallInFront(moveDir)) PlayAnim("Push");
+                    else if (IsWallInFront(moveDir)) PlayAnim("Push");
                     else PlayAnim("Walk");
                 }
                 else if (jumpCount <= 0) PlayAnim("DoubleJump");
@@ -342,6 +312,7 @@ namespace Scripting.Torquato.Control {
         private void OnTriggerEnter(Collider other) {
             if (other.gameObject.tag == "Water") {
                 waterCollision++;
+                Debug.Log("emter");
             }
             
             if (other.gameObject.tag == "Hole") {
@@ -350,6 +321,11 @@ namespace Scripting.Torquato.Control {
                 Item item = other.gameObject.GetComponent<Item>();
                 if (item != null) {
                     item.OnPlayerCollision(this, null);
+                } else if (other.transform.parent != null) {
+                    item = other.transform.parent.gameObject.GetComponent<Item>();
+                    if (item != null) {
+                        item.OnPlayerCollision(this, null);
+                    } 
                 }
             }
         }
@@ -357,6 +333,7 @@ namespace Scripting.Torquato.Control {
         private void OnTriggerExit(Collider other) {
             if (other.gameObject.tag == "Water") {
                 waterCollision--;
+                Debug.Log("leave");
             }
         }
         
