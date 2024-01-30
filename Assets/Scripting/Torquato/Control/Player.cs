@@ -44,6 +44,10 @@ namespace Scripting.Torquato.Control {
         // Jump
         public int jumpCount;
         public bool grounded;
+        public int waterCollision;
+        public bool IsSwim {
+            get => waterCollision != 0;
+        }
 
         // Movement
         private Vector3 moveDir = Vector3.zero;
@@ -100,7 +104,7 @@ namespace Scripting.Torquato.Control {
                     state = State.ATTACK;
                     stateTimer = 1f;
                     
-                } else if (ctrlDashDir.sqrMagnitude > epsilon && grounded && !IsWallInFront(ctrlDashDir)) {
+                } else if (ctrlDashDir.sqrMagnitude > epsilon && grounded && !IsSwim && !IsWallInFront(ctrlDashDir)) {
                     state = State.DASH;
                     stateTimer = 0.2f;
                     moveDir = ctrlDashDir;
@@ -129,7 +133,7 @@ namespace Scripting.Torquato.Control {
                     state = State.ATTACK;
                     stateTimer = 1f;
                     
-                } else if (ctrlDashDir.sqrMagnitude > epsilon && grounded && !IsWallInFront(ctrlDashDir)) {
+                } else if (ctrlDashDir.sqrMagnitude > epsilon && grounded && !IsSwim && !IsWallInFront(ctrlDashDir)) {
                     state = State.DASH;
                     stateTimer = 0.2f;
                     moveDir = ctrlDashDir;
@@ -142,7 +146,7 @@ namespace Scripting.Torquato.Control {
                 } else {
                     moveDir = ctrlMoveDir;
                     faceMoveDir = ctrlMoveDir;
-                    stateSpeed = 1f;
+                    stateSpeed = IsSwim ? 0.75f : 1f;
                 }
             } else if (state == State.ATTACK) {
                 stateSpeed = 1f;
@@ -263,7 +267,7 @@ namespace Scripting.Torquato.Control {
 
             // Cast a ray forward from the player's position
             Vector3 rayOrigin = transform.position + charController.center;
-            if (Physics.Raycast(rayOrigin, transform.TransformDirection(dir), out hit, charController.radius + 0.1f)) {
+            if (Physics.Raycast(rayOrigin, transform.TransformDirection(dir), out hit, charController.radius + 0.2f)) {
                 if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Default")) {
                     return true; // Wall detected
                 }
@@ -273,9 +277,25 @@ namespace Scripting.Torquato.Control {
         }
         
         private void ZBarrierFollow() {
-            var pos = transform.position;
-            zFoward = Mathf.Max(zFoward, pos.z);
-            zBarrier.transform.position = new Vector3(0, 0, zFoward - zBarrierDistance);
+            float backDistance = zBarrierDistance;
+            var path = currentPath.line;
+            float realT = currentPath.time * currentPath.line.length;
+            while (backDistance > realT && path.PrevLines.Count > 0) {
+                backDistance -= realT;
+                path = path.PrevLines[0];
+                GameController.CalculateLineDistance(transform.position, path.pointA, path.pointB, out _, out var time);
+                if (time > 0 && time < 1) {
+                    realT = path.length * time;
+                } else {
+                    realT = path.length;
+                }
+            }
+
+            realT -= backDistance;
+            realT /= path.length;
+            Vector3 pos = Vector3.LerpUnclamped(path.pointA, path.pointB, realT);
+            zBarrier.transform.position = new Vector3(pos.x, 0, pos.z);
+            zBarrier.transform.rotation = path.cleanRotation;
         }
 
         private void Animation() {
@@ -284,12 +304,19 @@ namespace Scripting.Torquato.Control {
                 Quaternion.Lerp(model.transform.rotation, Quaternion.LookRotation(dir), 35 * Time.deltaTime);
 
             if (state == State.IDLE) {
-                if (grounded) PlayAnim("Idle");
+                if (grounded) {
+                    if (IsSwim) PlayAnim("Float");
+                    else PlayAnim("Idle");
+                }
                 else if (jumpCount <= 0) PlayAnim("DoubleJump");
                 else PlayAnim("Jump", 0.5f);
                     
             } else if (state == State.MOVE) {
-                if (grounded) PlayAnim("Walk");
+                if (grounded) {
+                    if (IsSwim) PlayAnim("Swim");
+                    if (IsWallInFront(moveDir)) PlayAnim("Push");
+                    else PlayAnim("Walk");
+                }
                 else if (jumpCount <= 0) PlayAnim("DoubleJump");
                 else PlayAnim("Jump", 0.5f);
                     
@@ -313,6 +340,10 @@ namespace Scripting.Torquato.Control {
         }
         
         private void OnTriggerEnter(Collider other) {
+            if (other.gameObject.tag == "Water") {
+                waterCollision++;
+            }
+            
             if (other.gameObject.tag == "Hole") {
                 gameController.OnPlayerFallOnHole();
             } else {
@@ -320,6 +351,12 @@ namespace Scripting.Torquato.Control {
                 if (item != null) {
                     item.OnPlayerCollision(this, null);
                 }
+            }
+        }
+        
+        private void OnTriggerExit(Collider other) {
+            if (other.gameObject.tag == "Water") {
+                waterCollision--;
             }
         }
         

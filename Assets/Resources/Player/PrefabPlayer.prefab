@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6c99f85c241ee04cbd022d1abcadb0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  zBarrierDistance: 4
+  zBarrierDistance: 5
   prefabZBarrier: {fileID: 34816484218978505, guid: 985588b1188da3744b0f4c2e59ea375f,
     type: 3}
   charController: {fileID: 5687592843524478891}
@@ -54,7 +54,13 @@ MonoBehaviour:
   model: {fileID: 3703926166296750082}
   speed: 5
   jumpSpeed: 12
+  doubleJumpForce: 1
   gravity: 30
+  state: 0
+  stateTimer: 0
+  stateSpeed: 0
+  jumpCount: 0
+  grounded: 0
 --- !u!143 &5687592843524478891
 CharacterController:
   m_ObjectHideFlags: 0

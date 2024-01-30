@@ -9,6 +9,7 @@ namespace Scripting.Torquato.Control {
         public readonly Vector3 pointB;
         public readonly Vector3 dir;
         public readonly Quaternion rotation;
+        public readonly Quaternion cleanRotation;
         public readonly float length;
         
         private List<PathLine> prev = new List<PathLine>();
@@ -26,7 +27,8 @@ namespace Scripting.Torquato.Control {
             this.pointA = pointA;
             this.pointB = pointB;
             this.length = Vector3.Distance(this.pointA, this.pointB);
-            dir = (this.pointB - this.pointA).normalized;
+            var cleanDir = (this.pointB - this.pointA).normalized;
+            dir = cleanDir;
             if (type == PathType.FOWARD) {
                 dir = new Vector3(dir.x, 0, dir.z).normalized;
                 
@@ -41,6 +43,7 @@ namespace Scripting.Torquato.Control {
                 
             }
             this.rotation = Quaternion.LookRotation(dir);
+            this.cleanRotation = Quaternion.LookRotation(cleanDir);
         }
 
         public PathLine(PathPoint pointA, PathPoint pointB) : this(pointA.type, pointA.transform.position, pointB.transform.position) {
