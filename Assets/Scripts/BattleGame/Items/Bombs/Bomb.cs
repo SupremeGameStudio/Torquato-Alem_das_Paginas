@@ -68,6 +68,14 @@ namespace BattleGame.Items.Bombs {
             rbody.AddForce(dir * 8f, ForceMode.Impulse);
         }
 
+        public void Hold() {
+            rbody.constraints = RigidbodyConstraints.FreezeAll;
+        }
+        
+        public void Throw() {
+            rbody.constraints = RigidbodyConstraints.FreezeRotation;
+        }
+
         public void StopMove() {
             rbody.velocity = Vector3.zero;
         }

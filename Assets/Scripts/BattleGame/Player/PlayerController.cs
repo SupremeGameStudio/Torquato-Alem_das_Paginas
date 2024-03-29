@@ -60,8 +60,9 @@ namespace BattleGame.Player {
         private AttackState prevAttackState;
         public float attackTimer;
         public float prevAttackTimer;
-        private bool IsHolding;
+        private bool IsHolding => bombToHold != null;
         private Bomb bombToKick;
+        private Bomb bombToHold;
         private Vector3 kickDir;
 
         [Header("Upgrades")]
@@ -273,9 +274,6 @@ namespace BattleGame.Player {
                 if (IsHolding) {
                     attackState = AttackState.THROW;
                     
-                } else if (CheckPickEnabled()) {
-                    attackState = AttackState.PICK;
-                    
                 } else if (CheckAttackEnabled()) {
                     attackState = AttackState.ATTACK;
                 }
@@ -289,6 +287,13 @@ namespace BattleGame.Player {
                     bombToKick = bomb;
                     kickDir = dir;
                 }
+            } else if (ctrlSpecial) {
+                Bomb bomb = CheckBombFoward(faceMoveDir);
+                if (bomb) {
+                    attackState = AttackState.PICK;
+                    bombToHold = bomb;
+                    bomb.Hold();
+                }
             }
         }
 
@@ -296,8 +301,6 @@ namespace BattleGame.Player {
             if (ctrlPrimary && attackTimer <= 1.0f) {
                 if (attackTimer == 0) {
                     Vector3 pos = transform.position;
-                    pos.x = Mathf.RoundToInt(pos.x);
-                    pos.z = Mathf.RoundToInt(pos.z);
                     var bomb = gController.Instance<Bomb>("Battle/Bombs/PrefabBomb", pos);
                     bomb.Setup(gController, this);
                     bomb.size = BombSize;

@@ -20,9 +20,7 @@ namespace BattleGame.Items.Blocks {
         }
 
         public void Explode(Explosion explosion) {
-            Debug.Log("Here");
             if (Random.value <= upgradeChance && types.Length > 0) {
-                Debug.Log("a");
                 var type = types[Random.Range(0, types.Length)].ToString();
                 var exp = gController.Instance<Upgrade>("Battle/Upgrades/PrefabUpgrade" + type, transform.position);
             }
