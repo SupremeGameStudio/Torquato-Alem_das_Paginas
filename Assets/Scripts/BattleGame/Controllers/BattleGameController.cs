@@ -10,6 +10,7 @@ namespace BattleGame.Controllers {
 
         public int currentIndex;
         public Dictionary<int, Indexable> indexables = new Dictionary<int, Indexable>();
+        public BattleGameConfig gameConfig;
     
         void Start() {
             Debug.Log("Load Complete :" + ServicesManager.Current.GetName());

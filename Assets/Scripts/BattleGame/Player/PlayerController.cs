@@ -17,7 +17,7 @@ namespace BattleGame.Player {
         }
     
         public enum AttackState {
-            POSE, ATTACK, KICK, PICK, THROW
+            POSE, ATTACK, KICK, PICK, THROW, SPECIAL
         }
 
         private BattleGameController gController;
@@ -57,6 +57,7 @@ namespace BattleGame.Player {
     
         [Header("Attack")]
         public AttackState attackState;
+        public Transform bombPosition;
         private AttackState prevAttackState;
         public float attackTimer;
         public float prevAttackTimer;
@@ -214,6 +215,9 @@ namespace BattleGame.Player {
             } else if (attackState == AttackState.THROW) {
                 StateThrow();
                 
+            } else if (attackState == AttackState.SPECIAL) {
+                StateSpecial();
+                
             }
         }
         
@@ -269,12 +273,20 @@ namespace BattleGame.Player {
 
         private void StatePose() {
             if (!IsSimpleState) return;
-            
-            if (ctrlPrimary) {
-                if (IsHolding) {
-                    attackState = AttackState.THROW;
+
+            if (IsHolding) {
+                if (ctrlPrimary || ctrlSpecial) {
+                    Vector3 dir = faceMoveDir.normalized;
+                    dir = RoundYAngle(dir);
                     
-                } else if (CheckAttackEnabled()) {
+                    attackState = AttackState.THROW;
+                    kickDir = dir;
+                    
+                } else if (ctrlSecondary) {
+                    
+                }
+            } else if (ctrlPrimary) {
+                if (CheckAttackEnabled()) {
                     attackState = AttackState.ATTACK;
                 }
             } else if (ctrlSecondary) {
@@ -330,13 +342,29 @@ namespace BattleGame.Player {
         private void StatePick() {
             if (attackTimer <= 0.5f) {
                 speedAmplify = 0;
+                if (bombToHold != null) {
+                    bombToHold.transform.position = Vector3.Lerp(bombToHold.transform.position, bombPosition.position, 0.5f);
+                }
                 
             } else {
+                if (bombToHold != null) {
+                    bombToHold.transform.SetParent(bombPosition, false);
+                    bombToHold.transform.localPosition = Vector3.zero;
+                }
                 attackState = AttackState.POSE;
             }
         }
 
         private void StateThrow() {
+            if (prevAttackTimer <= 0 && attackTimer > 0) {
+                if (bombToHold != null) {
+                    bombToHold.transform.SetParent(null, true);
+                    bombToHold.Throw(kickDir);
+                }
+
+                bombToHold = null;
+            }
+
             if (attackTimer <= 0.5f) {
                 speedAmplify = 0;
                 
@@ -345,6 +373,11 @@ namespace BattleGame.Player {
             }
         }
 
+        private void StateSpecial() {
+            
+        }
+
+        
         private void Gravity() {
             grounded = charController.isGrounded;
             
@@ -366,8 +399,8 @@ namespace BattleGame.Player {
             
             if (moveState == MoveState.DEAD) PlayAnim("Death");
             else if (attackState == AttackState.KICK) PlayAnim("Kick");
-            else if (attackState == AttackState.PICK) PlayAnim("Pick", 0.1f);
-            else if (attackState == AttackState.THROW) PlayAnim("Throw", 0.1f);
+            else if (attackState == AttackState.PICK) PlayAnim("Pick");
+            else if (attackState == AttackState.THROW) PlayAnim("Throw");
             else if (moveState == MoveState.IDLE) PlayAnim(grounded ? "Idle" : "Jump");
             else if (moveState == MoveState.MOVE) PlayAnim(grounded ? "Walk" : "Jump");
             else if (moveState == MoveState.DASH) PlayAnim("Dash");
@@ -448,7 +481,27 @@ namespace BattleGame.Player {
                 indexable = hit.transform.parent.GetComponent<Indexable>();
             }
             if (indexable != null) {
+                if (indexable is Bomb bomb) {
+                    Vector3 diff = bomb.transform.position - transform.position;
+                    if (hit.normal.y > 0.5f && diff.y < -0.9f) {
+                        Spring(1.0f);
+                        
+                    }/* else if (bomb.IsMoving) {
+                        Stun();
+                        bomb.StopMove();
+                        
+                    }*/
+                }
+            }
+        }
+        
+        private void OnTriggerEnter(Collider other) {
+            var indexable = other.gameObject.GetComponent<Indexable>();
+            if (indexable == null && other.transform.parent != null) {
+                indexable = other.transform.parent.GetComponent<Indexable>();
+            }
 
+            if (indexable != null) {
                 if (indexable is Upgrade upgrade) {
                     if (upgrade.type == Upgrade.Type.Bomb) {
                         upgradeBomb++;
@@ -459,16 +512,6 @@ namespace BattleGame.Player {
                     }
                     upgrade.Collect();
                     
-                } else if (indexable is Bomb bomb) {
-                    Vector3 diff = bomb.transform.position - transform.position;
-                    if (hit.normal.y > 0.5f && diff.y < -0.9f) {
-                        Spring(1.0f);
-                        
-                    } else if (bomb.IsMoving) {
-                        Stun();
-                        bomb.StopMove();
-                        
-                    }
                 }
             }
         }

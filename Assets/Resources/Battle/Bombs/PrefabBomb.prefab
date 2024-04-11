@@ -51,7 +51,7 @@ MonoBehaviour:
   size: 0
   timer: 0
   groundNormal: {x: 0, y: 0, z: 0}
-  boxCollider: {fileID: 0}
+  mainCollider: {fileID: 910411710410072209}
 --- !u!54 &99613206901965722
 Rigidbody:
   m_ObjectHideFlags: 0

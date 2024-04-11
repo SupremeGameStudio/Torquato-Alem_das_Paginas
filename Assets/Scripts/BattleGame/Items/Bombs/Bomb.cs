@@ -13,13 +13,15 @@ namespace BattleGame.Items.Bombs {
         public float size;
         public float timer;
         public Vector3 groundNormal;
-        public Collider boxCollider;
+        public Collider mainCollider;
         private Rigidbody rbody;
 
         public bool IsMoving {
-            get => rbody.velocity.sqrMagnitude > 0.01f;
+            get {
+                return Mathf.Abs(rbody.velocity.x) > 0.01f || Mathf.Abs(rbody.velocity.z) > 0.01f;
+            }
         }
-        
+
         public void Setup(BattleGameController gController, PlayerController player) {
             rbody = GetComponent<Rigidbody>();
             
@@ -70,10 +72,13 @@ namespace BattleGame.Items.Bombs {
 
         public void Hold() {
             rbody.constraints = RigidbodyConstraints.FreezeAll;
+            mainCollider.enabled = false;
         }
         
-        public void Throw() {
+        public void Throw(Vector3 dir) {
             rbody.constraints = RigidbodyConstraints.FreezeRotation;
+            mainCollider.enabled = true;
+            rbody.AddForce((dir + new Vector3(0, 1.0f, 0)) * 5f, ForceMode.Impulse);
         }
 
         public void StopMove() {
