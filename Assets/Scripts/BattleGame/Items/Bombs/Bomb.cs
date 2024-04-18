@@ -5,7 +5,7 @@ using Debugging;
 using UnityEngine;
 
 namespace BattleGame.Items.Bombs {
-    public class Bomb : Item, IExplosable {
+    public class Bomb : Indexable, IExplosable {
         private BattleGameController gController;
         private PlayerController player;
         private bool startCollision;
@@ -47,9 +47,7 @@ namespace BattleGame.Items.Bombs {
             timer -= Time.deltaTime;
             if (timer <= 0) {
                 var exp = gController.Instance<Explosion>("Battle/Explosions/PrefabExplosion", transform.position + new Vector3(0, 0.5f, 0));
-                exp.duration = 1;
-                exp.size = size;
-                
+                exp.Setup(1, size);
                 Destroy(gameObject);
             }
 

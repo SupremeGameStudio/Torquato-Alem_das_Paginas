@@ -7,7 +7,7 @@ using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace BattleGame.Items.Blocks {
-    public class Block : Item, IExplosable {
+    public class Block : Indexable, IExplosable {
         private BattleGameController gController;
         
         public float upgradeChance = 1f;

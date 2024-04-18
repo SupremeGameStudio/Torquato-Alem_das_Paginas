@@ -1,4 +1,5 @@
 ﻿using System;
+using BattleGame.Player;
 using Debugging;
 using Helper;
 using UnityEngine;
@@ -9,10 +10,20 @@ namespace BattleGame.Items.Bombs {
         
         public float size;
         public float duration;
+        public IExplosable immune;
         private float maxDuration;
 
         private void Start() {
             maxDuration = duration;
+        }
+
+        public void Setup(float duration, float size) {
+            this.duration = duration;
+            this.size = size;
+        }
+
+        public void SetImmunity(IExplosable immune) {
+            this.immune = immune;
         }
 
         void FixedUpdate() {
@@ -28,14 +39,14 @@ namespace BattleGame.Items.Bombs {
 
         private void OnCollisionEnter(Collision other) {
             var explosable = other.gameObject.GetComponent<IExplosable>();
-            if (explosable != null) {
+            if (explosable != null && immune != explosable) {
                 explosable.Explode(this);
             }
         }
 
         private void OnTriggerEnter(Collider other) {
             var explosable = other.GetComponent<IExplosable>();
-            if (explosable != null) {
+            if (explosable != null && immune != explosable) {
                 explosable.Explode(this);
             }
         }

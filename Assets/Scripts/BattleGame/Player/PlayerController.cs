@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using BattleGame.Controllers;
 using BattleGame.Items;
 using BattleGame.Items.Bombs;
+using BattleGame.Items.Specials;
 using BattleGame.Items.Upgrades;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -18,6 +19,10 @@ namespace BattleGame.Player {
     
         public enum AttackState {
             POSE, ATTACK, KICK, PICK, THROW, SPECIAL
+        }
+    
+        public enum SpecialMode {
+            BLAST, BOOST, ROTATE, STALKER, WALL, IMMUNITY 
         }
 
         private BattleGameController gController;
@@ -52,7 +57,8 @@ namespace BattleGame.Player {
         private MoveState prevMoveState;
         public float stateTimer;
         public float stateDuration;
-        public float speedAmplify = 1;
+        public bool blockMove;
+        public float moveSpeedBoost;
         private Vector3 stateDir = Vector3.zero;
     
         [Header("Attack")]
@@ -65,6 +71,9 @@ namespace BattleGame.Player {
         private Bomb bombToKick;
         private Bomb bombToHold;
         private Vector3 kickDir;
+        public float attackKickTimer;
+        public SpecialMode special;
+        public float specialTimer;
 
         [Header("Upgrades")]
         public int upgradeFire;
@@ -103,7 +112,7 @@ namespace BattleGame.Player {
         
         public float Speed {
             get {
-                return (upgradeSpeed / 20f + 1.0f) * speed;
+                return ((upgradeSpeed / 20f + 1.0f) * speed) * (specialTimer > 0 ? 0.5f : 1f);
             }
         }
 
@@ -190,11 +199,17 @@ namespace BattleGame.Player {
         }
 
         private void AttackStateControl() {
+            specialTimer -= Time.deltaTime;
+
             if (prevAttackState != attackState) {
                 prevAttackState = attackState;
                 prevAttackTimer = 0;
                 attackTimer = 0;
-                speedAmplify = 1;
+                attackKickTimer = 0;
+                
+                // State Transmission
+                blockMove = false;
+                moveSpeedBoost = 0;
             } else {
                 prevAttackTimer = attackTimer;
                 attackTimer += Time.deltaTime;
@@ -222,7 +237,7 @@ namespace BattleGame.Player {
         }
         
         private void StateIdle() {
-            if (ctrlMoveDir.sqrMagnitude <= epsilon || speedAmplify <= 0) {
+            if (ctrlMoveDir.sqrMagnitude <= epsilon || blockMove) {
                 moveDir = Vector3.zero;
                 
             } else {
@@ -231,7 +246,7 @@ namespace BattleGame.Player {
         }
 
         private void StateMove() {
-            if (ctrlMoveDir.sqrMagnitude > epsilon && speedAmplify > 0) {
+            if (ctrlMoveDir.sqrMagnitude > epsilon && !blockMove) {
                 moveDir = ctrlMoveDir;
                 faceMoveDir = ctrlMoveDir;
                 
@@ -245,7 +260,7 @@ namespace BattleGame.Player {
                 moveDir = stateDir;
                 
             } else {
-                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && speedAmplify > 0) ? MoveState.MOVE : MoveState.IDLE;
+                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && !blockMove) ? MoveState.MOVE : MoveState.IDLE;
             }
         }
 
@@ -254,7 +269,7 @@ namespace BattleGame.Player {
                 moveDir = stateDir;
                 
             } else {
-                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && speedAmplify > 0) ? MoveState.MOVE : MoveState.IDLE;
+                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && !blockMove) ? MoveState.MOVE : MoveState.IDLE;
             }
         }
 
@@ -263,7 +278,7 @@ namespace BattleGame.Player {
                 moveDir = Vector3.zero;
                 
             } else {
-                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && speedAmplify > 0) ? MoveState.MOVE : MoveState.IDLE;
+                moveState = (ctrlMoveDir.sqrMagnitude > epsilon && !blockMove) ? MoveState.MOVE : MoveState.IDLE;
             }
         }
 
@@ -274,6 +289,7 @@ namespace BattleGame.Player {
         private void StatePose() {
             if (!IsSimpleState) return;
 
+            Bomb bomb = CheckBombFoward(faceMoveDir);
             if (IsHolding) {
                 if (ctrlPrimary || ctrlSpecial) {
                     Vector3 dir = faceMoveDir.normalized;
@@ -289,22 +305,30 @@ namespace BattleGame.Player {
                 if (CheckAttackEnabled()) {
                     attackState = AttackState.ATTACK;
                 }
-            } else if (ctrlSecondary) {
-                Bomb bomb = CheckBombFoward(faceMoveDir);
-                if (bomb) {
-                    Vector3 dir = faceMoveDir.normalized;
-                    dir = RoundYAngle(dir);
-
-                    attackState = AttackState.KICK;
-                    bombToKick = bomb;
-                    kickDir = dir;
-                }
-            } else if (ctrlSpecial) {
-                Bomb bomb = CheckBombFoward(faceMoveDir);
+            }  else if (ctrlSpecial) {
                 if (bomb) {
                     attackState = AttackState.PICK;
                     bombToHold = bomb;
                     bomb.Hold();
+                }
+            } else if (ctrlSecondary) {
+                if (specialTimer <= 0 && IsSimpleState) {
+                    attackState = AttackState.SPECIAL;
+                }
+
+            } else if (moveState == MoveState.MOVE) {
+                if (bomb && bomb.IsCollisionStarted(this)) {
+                    attackKickTimer += Time.deltaTime;
+                    if (attackKickTimer >= 0.4f) {
+                        Vector3 dir = faceMoveDir.normalized;
+                        dir = RoundYAngle(dir);
+
+                        attackState = AttackState.KICK;
+                        bombToKick = bomb;
+                        kickDir = dir;
+                    }
+                } else {
+                    attackKickTimer = 0;
                 }
             }
         }
@@ -332,7 +356,7 @@ namespace BattleGame.Player {
                 }
             }
             if (attackTimer <= 0.66f) {
-                speedAmplify = 0;
+                blockMove = true;
                 
             } else {
                 attackState = AttackState.POSE;
@@ -341,7 +365,7 @@ namespace BattleGame.Player {
 
         private void StatePick() {
             if (attackTimer <= 0.5f) {
-                speedAmplify = 0;
+                blockMove = true;
                 if (bombToHold != null) {
                     bombToHold.transform.position = Vector3.Lerp(bombToHold.transform.position, bombPosition.position, 0.5f);
                 }
@@ -366,7 +390,7 @@ namespace BattleGame.Player {
             }
 
             if (attackTimer <= 0.5f) {
-                speedAmplify = 0;
+                blockMove = true;
                 
             } else {
                 attackState = AttackState.POSE;
@@ -374,9 +398,40 @@ namespace BattleGame.Player {
         }
 
         private void StateSpecial() {
-            
-        }
+            specialTimer = 8.0f;
 
+            if (special == SpecialMode.BLAST) {
+                if (prevAttackTimer <= 0 && attackTimer > 0) {
+                    var exp = gController.Instance<Blast>("Battle/Specials/PrefabBlast", transform.position + faceMoveDir, 
+                        Quaternion.LookRotation(faceMoveDir, Vector3.up));
+                    exp.Setup(gController, this, 8, 0.5f);
+                }
+                if (attackTimer <= 2f) {
+                    blockMove = true;
+                
+                } else {
+                    attackState = AttackState.POSE;
+                }
+                
+            } else if (special == SpecialMode.BOOST) {
+                if (prevAttackTimer <= 0 && attackTimer > 0) {
+                    var exp = gController.Instance<Boost>("Battle/Specials/PrefabBoost", transform.position + faceMoveDir, 
+                        Quaternion.LookRotation(faceMoveDir, Vector3.up));
+                    exp.Setup(gController, this);
+                }
+                if (attackTimer <= 1.5f) {
+                    blockMove = true;
+                    if (attackTimer > 1.0f) {
+                        moveDir = faceMoveDir;
+                        moveSpeedBoost = 16;
+                    }
+
+                } else {
+                    attackState = AttackState.POSE;
+                    moveSpeedBoost = 0;
+                }
+            }
+        }
         
         private void Gravity() {
             grounded = charController.isGrounded;
@@ -388,7 +443,7 @@ namespace BattleGame.Player {
         }
 
         private void Move() {
-            float spd = Speed * speedAmplify;
+            float spd = Speed * (blockMove ? 0 : 1) + moveSpeedBoost;
             charController.Move((moveDir * spd + new Vector3(0, verSpeed, 0)) * Time.deltaTime);
         }
 
@@ -440,7 +495,6 @@ namespace BattleGame.Player {
             moveState = MoveState.RECOIL;
             stateDir = dir;
             stateDuration = duration;
-            speedAmplify = speed / this.Speed;
         }
 
         public void Spring(float springForce) {

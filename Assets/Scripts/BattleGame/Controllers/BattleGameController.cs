@@ -30,12 +30,16 @@ namespace BattleGame.Controllers {
                 .ForEach(pair => indexables.Remove(pair.Key));
         }
 
-        public T Instance<T>(string resource, Vector3 pos) where T : Indexable {
-            var obj = Instantiate(ResourceManager.load(resource), pos, Quaternion.identity).GetComponent<T>();
+        public T Instance<T>(string resource, Vector3 pos, Quaternion rot) where T : Indexable {
+            var obj = Instantiate(ResourceManager.load(resource), pos, rot).GetComponent<T>();
             obj.index = ++currentIndex;
 
             indexables[obj.index] = obj;
             return obj;
+        }
+
+        public T Instance<T>(string resource, Vector3 pos, Vector3 rot = default) where T : Indexable {
+            return Instance<T>(resource, pos, rot == default ? Quaternion.identity : Quaternion.Euler(rot));
         }
     }
 }
